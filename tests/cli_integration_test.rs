@@ -17,10 +17,10 @@ fn run_cli(args: &[&str]) -> Result<std::process::Output> {
 #[test]
 #[ignore] // Requires compiled binary
 fn test_help_message() -> Result<()> {
-    let output = run_cli(&["redact", "--help"])?;
+    let output = run_cli(&["--help"])?;
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("Redact text from a PDF file"));
+    assert!(stdout.contains("Input PDF file"));
     assert!(stdout.contains("--verizon"));
     assert!(stdout.contains("--phones"));
     assert!(stdout.contains("--verbose"));
@@ -38,9 +38,8 @@ fn test_verizon_flag_auto_includes_phones() -> Result<()> {
     let _input = _temp_dir.path().join("input.pdf");
     let _output = _temp_dir.path().join("output.pdf");
 
-    // Create a minimal test PDF (would need actual PDF creation)
-    // For now, test with help output
-    let help_output = run_cli(&["redact", "--help"])?;
+    // Verify help output documents verizon flag behavior
+    let help_output = run_cli(&["--help"])?;
     let help_text = String::from_utf8_lossy(&help_output.stdout);
 
     // Verify documentation mentions automatic phone redaction
@@ -72,7 +71,6 @@ fn test_missing_input_file_error() -> Result<()> {
     let output = temp_dir.path().join("output.pdf");
 
     let result = run_cli(&[
-        "redact",
         "--input",
         nonexistent.to_str().unwrap(),
         "--output",
@@ -100,7 +98,6 @@ fn test_no_targets_specified_error() -> Result<()> {
     let _output = temp_dir.path().join("output.pdf");
 
     let result = run_cli(&[
-        "redact",
         "--input",
         _input.to_str().unwrap(),
         "--output",

@@ -55,8 +55,8 @@ redactor = "0.2"
 #### Redact Verizon Bill for Expense Report
 
 ```bash
-# Redact account number and all phone numbers (recommended for expense reports)
-redactor redact --input verizon-bill.pdf --output for-concur.pdf --verizon
+# Redact account number, phone numbers, and call details (recommended for expense reports)
+redactor --input verizon-bill.pdf --output for-concur.pdf --verizon
 ```
 
 This command will:
@@ -69,10 +69,10 @@ This command will:
 
 ```bash
 # Redact only phone numbers
-redactor redact --input document.pdf --output redacted.pdf --phones
+redactor --input document.pdf --output redacted.pdf --phones
 
 # Redact custom patterns (e.g., email addresses)
-redactor redact --input doc.pdf --output out.pdf --pattern "your.email@example.com"
+redactor --input doc.pdf --output out.pdf --pattern "your.email@example.com"
 
 # Extract text to verify what's in the PDF
 redactor extract --input document.pdf --output text.txt
@@ -109,7 +109,7 @@ Many expense systems (Concur, Expensify, etc.) can extract text from PDFs for au
 
 ```bash
 # After redaction, verify text is gone
-redactor extract --input redacted.pdf --output -
+redactor extract --input redacted.pdf
 # Your account number and phone numbers should NOT appear in output
 ```
 
@@ -133,10 +133,10 @@ redactor extract --input redacted.pdf --output -
 
 ## Command Reference
 
-### Redact Command
+### Default Mode: Redaction
 
 ```bash
-redactor redact [OPTIONS] --input <FILE> --output <FILE>
+redactor [OPTIONS] --input <FILE> --output <FILE>
 
 Options:
   -i, --input <FILE>       Input PDF file
@@ -148,7 +148,7 @@ Options:
   -v, --verbose            Verbose output
 ```
 
-### Extract Command
+### Extract Subcommand
 
 ```bash
 redactor extract --input <FILE> [--output <FILE>]
@@ -165,10 +165,10 @@ Options:
 ```bash
 # 1. Download your Verizon bill (e.g., January-2026.pdf)
 # 2. Redact sensitive information
-redactor redact --input January-2026.pdf --output January-2026-redacted.pdf --verizon
+redactor --input January-2026.pdf --output January-2026-redacted.pdf --verizon
 
 # 3. (Optional) Verify redaction by extracting text
-redactor extract --input January-2026-redacted.pdf --output -
+redactor extract --input January-2026-redacted.pdf
 # Your account number and phone numbers should NOT appear in the output
 
 # 4. Upload January-2026-redacted.pdf to Concur/Expensify
@@ -177,7 +177,7 @@ redactor extract --input January-2026-redacted.pdf --output -
 ### Redact Multiple Pattern Types
 
 ```bash
-redactor redact \
+redactor \
   --input sensitive.pdf \
   --output clean.pdf \
   --phones \

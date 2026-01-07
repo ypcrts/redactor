@@ -6,7 +6,22 @@ use regex::Regex;
 use std::fs;
 use std::io::BufWriter;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tempfile::TempDir;
+
+// Global mutex to serialize MuPDF operations across tests
+// MuPDF has thread-safety issues with font loading, so we need to ensure
+// only one test uses MuPDF at a time
+static MUPDF_LOCK: Mutex<()> = Mutex::new(());
+
+/// Helper macro to wrap MuPDF operations with the global lock
+/// This prevents race conditions in MuPDF's font initialization
+macro_rules! with_mupdf_lock {
+    ($body:expr) => {{
+        let _guard = MUPDF_LOCK.lock().expect("MuPDF lock poisoned");
+        $body
+    }};
+}
 
 /// Create a test PDF with various American phone number formats
 fn create_test_pdf_with_phones(path: &std::path::Path) -> Result<()> {
@@ -104,8 +119,11 @@ fn test_phone_number_redaction_e2e() -> Result<()> {
     let input_count = count_phone_numbers_in_pdf(&input_pdf)?;
     assert!(input_count > 0, "Input PDF should contain phone numbers");
 
-    // Redact phone numbers
-    redactor::redact_phone_numbers_in_pdf(&input_pdf, &output_pdf)?;
+    // Redact phone numbers (with MuPDF lock to prevent race conditions)
+    with_mupdf_lock!(redactor::redact_phone_numbers_in_pdf(
+        &input_pdf,
+        &output_pdf
+    )?);
 
     // Verify output exists
     assert!(output_pdf.exists(), "Output PDF should be created");
@@ -186,8 +204,11 @@ Address: 123 Main St
     current_layer.use_text(text_content, 48.0, Mm(20.0), Mm(250.0), &font);
     doc.save(&mut BufWriter::new(fs::File::create(&input_pdf)?))?;
 
-    // Redact phone numbers
-    redactor::redact_phone_numbers_in_pdf(&input_pdf, &output_pdf)?;
+    // Redact phone numbers (with MuPDF lock to prevent race conditions)
+    with_mupdf_lock!(redactor::redact_phone_numbers_in_pdf(
+        &input_pdf,
+        &output_pdf
+    )?);
 
     // Verify output exists
     assert!(output_pdf.exists(), "Output PDF should be created");
@@ -312,7 +333,10 @@ fn test_e2e_single_phone_redaction() -> Result<()> {
     // Generate expected output if it doesn't exist (one-time setup)
     if !expected_output_pdf.exists() {
         println!("Generating expected output PDF (one-time setup)...");
-        redactor::redact_phone_numbers_in_pdf(&input_pdf, &expected_output_pdf)?;
+        with_mupdf_lock!(redactor::redact_phone_numbers_in_pdf(
+            &input_pdf,
+            &expected_output_pdf
+        )?);
         println!(
             "Generated expected output PDF: {}",
             expected_output_pdf.display()
@@ -370,8 +394,11 @@ fn test_e2e_single_phone_redaction() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let output_pdf = temp_dir.path().join("test_output_single_phone.pdf");
 
-    // Redact phone numbers
-    redactor::redact_phone_numbers_in_pdf(&input_pdf, &output_pdf)?;
+    // Redact phone numbers (with MuPDF lock to prevent race conditions)
+    with_mupdf_lock!(redactor::redact_phone_numbers_in_pdf(
+        &input_pdf,
+        &output_pdf
+    )?);
 
     // Verify output exists
     assert!(output_pdf.exists(), "Output PDF should be created");
@@ -673,8 +700,11 @@ fn test_my_bill_type3_phone_redaction() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let output_pdf = temp_dir.path().join("test_output_my_bill.pdf");
 
-    // Redact phone numbers
-    redactor::redact_phone_numbers_in_pdf(&input_pdf, &output_pdf)?;
+    // Redact phone numbers (with MuPDF lock to prevent race conditions)
+    with_mupdf_lock!(redactor::redact_phone_numbers_in_pdf(
+        &input_pdf,
+        &output_pdf
+    )?);
 
     // Verify output exists
     assert!(output_pdf.exists(), "Output PDF should be created");
@@ -976,8 +1006,11 @@ fn test_secure_redaction_verizon_account() -> Result<()> {
         "Input PDF should contain the account number"
     );
 
-    // Redact using MuPDF secure redaction
-    redactor::redact_verizon_account_in_pdf(&input_pdf, &output_pdf)?;
+    // Redact using MuPDF secure redaction (with lock to prevent race conditions)
+    with_mupdf_lock!(redactor::redact_verizon_account_in_pdf(
+        &input_pdf,
+        &output_pdf
+    )?);
 
     // Verify output PDF exists
     assert!(output_pdf.exists(), "Output PDF should be created");
@@ -1030,7 +1063,8 @@ fn test_service_with_multiple_targets() -> Result<()> {
         RedactionTarget::PhoneNumbers,
     ];
 
-    let result = service.redact(&input_pdf, &output_pdf, &targets)?;
+    // Use MuPDF lock to prevent race conditions
+    let result = with_mupdf_lock!(service.redact(&input_pdf, &output_pdf, &targets)?);
 
     // Verify redactions occurred
     assert!(
@@ -1235,7 +1269,8 @@ fn test_e2e_verizon_call_details_redaction() -> Result<()> {
         redactor::RedactionTarget::VerizonCallDetails,
     ];
 
-    let result = service.redact(&input_pdf, &output_pdf, &targets)?;
+    // Use MuPDF lock to prevent race conditions
+    let result = with_mupdf_lock!(service.redact(&input_pdf, &output_pdf, &targets)?);
 
     // Verify redactions occurred
     assert!(
@@ -1434,7 +1469,8 @@ fn test_real_verizon_bill_call_details() -> Result<()> {
         redactor::RedactionTarget::VerizonCallDetails,
     ];
 
-    let result = service.redact(&real_bill_path, &output_pdf, &targets)?;
+    // Use MuPDF lock to prevent race conditions
+    let result = with_mupdf_lock!(service.redact(&real_bill_path, &output_pdf, &targets)?);
 
     println!(
         "✓ Real bill redaction: {} instances redacted across {} pages",

@@ -12,48 +12,46 @@ use redactor::{RedactionService, RedactionTarget, SecureRedactionStrategy};
 /// PDF Redaction Tool
 ///
 /// Securely redact sensitive information from PDF documents.
+/// By default, performs redaction. Use 'extract' subcommand for text extraction.
 #[derive(Parser)]
 #[command(name = "redactor")]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
+    /// Input PDF file path
+    #[arg(short, long, value_name = "FILE")]
+    input: Option<PathBuf>,
+
+    /// Output PDF file path
+    #[arg(short, long, value_name = "FILE")]
+    output: Option<PathBuf>,
+
+    /// Text patterns to redact (can be specified multiple times)
+    #[arg(short, long, value_name = "PATTERN")]
+    pattern: Vec<String>,
+
+    /// Redact American phone numbers
+    #[arg(long, conflicts_with = "all")]
+    phones: bool,
+
+    /// Redact Verizon account number (automatically includes phone numbers and call details)
+    #[arg(long, conflicts_with = "all")]
+    verizon: bool,
+
+    /// Redact all text (complete document redaction)
+    #[arg(long, conflicts_with_all = ["phones", "verizon"])]
+    all: bool,
 
     /// Enable verbose output
     #[arg(short, long, global = true)]
     verbose: bool,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Redact text from a PDF file
-    Redact {
-        /// Input PDF file path
-        #[arg(short, long, value_name = "FILE")]
-        input: PathBuf,
-
-        /// Output PDF file path
-        #[arg(short, long, value_name = "FILE")]
-        output: PathBuf,
-
-        /// Text patterns to redact (can be specified multiple times)
-        #[arg(short, long, value_name = "PATTERN")]
-        pattern: Vec<String>,
-
-        /// Redact American phone numbers
-        #[arg(long, conflicts_with = "all")]
-        phones: bool,
-
-        /// Redact Verizon account number (automatically includes phone numbers)
-        #[arg(long, conflicts_with = "all")]
-        verizon: bool,
-
-        /// Redact all text (complete document redaction)
-        #[arg(long, conflicts_with_all = ["phones", "verizon"])]
-        all: bool,
-    },
-
-    /// Extract text from a PDF (for debugging)
+    /// Extract text from a PDF (for debugging and verification)
     Extract {
         /// Input PDF file path
         #[arg(short, long, value_name = "FILE")]
@@ -200,19 +198,23 @@ fn main() -> Result<()> {
     let handler = RedactionHandler::new(cli.verbose);
 
     match &cli.command {
-        Commands::Redact {
-            input,
-            output,
-            pattern,
-            phones,
-            verizon,
-            all,
-        } => {
-            let targets = build_targets(pattern, *phones, *verizon, *all);
-            handler.redact(input, output, targets)?;
-        }
-        Commands::Extract { input, output } => {
+        Some(Commands::Extract { input, output }) => {
+            // Extract subcommand
             handler.extract(input, output.as_deref())?;
+        }
+        None => {
+            // Default: redaction mode
+            let input = cli
+                .input
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("--input is required"))?;
+            let output = cli
+                .output
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("--output is required"))?;
+
+            let targets = build_targets(&cli.pattern, cli.phones, cli.verizon, cli.all);
+            handler.redact(input, output, targets)?;
         }
     }
 
@@ -230,8 +232,13 @@ mod tests {
         assert_eq!(targets.len(), 3); // VerizonAccount + PhoneNumbers + VerizonCallDetails
 
         // Test literal pattern
-        let targets = build_targets(&["test".to_string()], false, false, false);
+        let targets = build_targets(&[String::from("test")], false, false, false);
         assert_eq!(targets.len(), 1);
         assert!(matches!(targets[0], RedactionTarget::Literal(_)));
+
+        // Test phones flag
+        let targets = build_targets(&[], true, false, false);
+        assert_eq!(targets.len(), 1);
+        assert!(matches!(targets[0], RedactionTarget::PhoneNumbers));
     }
 }

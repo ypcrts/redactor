@@ -1,6 +1,6 @@
 [package]
 name = "redactor"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.70"
 description = "Secure PDF redaction library with Type3 font support using MuPDF"
