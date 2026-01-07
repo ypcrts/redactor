@@ -16,6 +16,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libharfbuzz-dev \
+          libgraphite2-dev \
+          libjpeg-dev \
+          libopenjp2-7-dev \
+          libssl-dev \
+          pkg-config
     - name: Build
       run: cargo build --verbose
     - name: Run tests
