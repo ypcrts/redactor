@@ -42,7 +42,7 @@ fn test_full_page_redaction_pattern() -> Result<()> {
         .build(&input)?;
 
     let service = RedactionService::with_secure_strategy();
-    
+
     // Use a pattern that should match everything
     let result = with_mupdf_lock!(service.redact(
         &input,
@@ -73,13 +73,10 @@ fn test_verizon_call_details_no_table_present() -> Result<()> {
         .build(&input)?;
 
     let service = RedactionService::with_secure_strategy();
-    
+
     // Should handle gracefully when no call detail table exists
-    let result = with_mupdf_lock!(service.redact(
-        &input,
-        &output,
-        &[RedactionTarget::VerizonCallDetails]
-    ))?;
+    let result =
+        with_mupdf_lock!(service.redact(&input, &output, &[RedactionTarget::VerizonCallDetails]))?;
 
     assert!(output.exists());
     // No redactions expected since no call detail table
@@ -103,7 +100,7 @@ fn test_redaction_with_unicode_paths() -> Result<()> {
         .build(&input)?;
 
     let service = RedactionService::with_secure_strategy();
-    
+
     let result = with_mupdf_lock!(service.redact(
         &input,
         &output,
@@ -134,7 +131,7 @@ fn test_strategy_with_custom_max_hits() -> Result<()> {
     // Create strategy with very low max_hits
     let strategy = SecureRedactionStrategy::new().with_max_hits(2);
     let service = RedactionService::new(Box::new(strategy));
-    
+
     let result = with_mupdf_lock!(service.redact(
         &input,
         &output,
@@ -163,13 +160,10 @@ fn test_resolve_patterns_no_matches() -> Result<()> {
         .build(&input)?;
 
     let service = RedactionService::with_secure_strategy();
-    
+
     // Try to redact phones when none exist
-    let result = with_mupdf_lock!(service.redact(
-        &input,
-        &output,
-        &[RedactionTarget::PhoneNumbers]
-    ))?;
+    let result =
+        with_mupdf_lock!(service.redact(&input, &output, &[RedactionTarget::PhoneNumbers]))?;
 
     assert!(output.exists());
     assert_eq!(result.instances_redacted, 0);
@@ -189,16 +183,16 @@ fn test_resolve_patterns_no_matches() -> Result<()> {
 #[test]
 fn test_account_variants_12_digit_format() {
     use redactor::domain::{PatternMatcher, VerizonAccountMatcher};
-    
+
     let matcher = VerizonAccountMatcher::new();
     let account_12_digit = "123456789012";
-    
+
     let variants = matcher.generate_variants(account_12_digit);
-    
+
     // Should generate variants for 12-digit format
     assert!(!variants.is_empty());
     assert!(variants.contains(&account_12_digit.to_string()));
-    
+
     // Should generate formatted variants
     assert!(variants.iter().any(|v| v.contains('-')));
 }
@@ -209,11 +203,11 @@ fn test_account_variants_12_digit_format() {
 #[test]
 fn test_find_account_generic_pattern() {
     use redactor::domain::VerizonAccountMatcher;
-    
+
     // Account with generic format (not 9-5 or 14 digits)
     let text = "Account Number: 1234-5678-9012";
     let result = VerizonAccountMatcher::find_account_number(text);
-    
+
     // Should find using generic pattern
     assert!(result.is_some());
 }
@@ -224,10 +218,10 @@ fn test_find_account_generic_pattern() {
 #[test]
 fn test_account_with_spaces() {
     use redactor::domain::VerizonAccountMatcher;
-    
+
     let text = "Account: 123 456 789 00 001";
     let result = VerizonAccountMatcher::find_account_number(text);
-    
+
     // Generic pattern should handle spaces
     assert!(result.is_some());
 }
@@ -242,16 +236,16 @@ fn test_account_with_spaces() {
 #[test]
 fn test_phone_validation_edge_cases() {
     use redactor::domain::PhoneNumberMatcher;
-    
+
     // Area code starting with 2 (minimum valid)
     assert!(PhoneNumberMatcher::validate("200", "234", "5678"));
-    
+
     // Area code starting with 9 (maximum valid)
     assert!(PhoneNumberMatcher::validate("999", "234", "5678"));
-    
+
     // Exchange code starting with 2 (minimum valid)
     assert!(PhoneNumberMatcher::validate("555", "200", "5678"));
-    
+
     // Exchange code starting with 9 (maximum valid)
     assert!(PhoneNumberMatcher::validate("555", "999", "5678"));
 }
@@ -268,21 +262,21 @@ fn test_handler_verbose_output() -> Result<()> {
     // This is tested via CLI integration tests with --verbose flag
     // Adding explicit test for the formatting logic
     use redactor::RedactionResult;
-    
+
     let result = RedactionResult {
         instances_redacted: 5,
         pages_processed: 3,
         pages_modified: 2,
         secure: true,
     };
-    
+
     // Verify all fields are accessible and formatted correctly
     assert_eq!(result.instances_redacted, 5);
     assert_eq!(result.pages_processed, 3);
     assert_eq!(result.pages_modified, 2);
     assert!(result.secure);
     assert!(result.has_redactions());
-    
+
     Ok(())
 }
 
@@ -296,9 +290,9 @@ fn test_handler_verbose_output() -> Result<()> {
 #[test]
 fn test_call_details_normalize_no_match() {
     use redactor::domain::{PatternMatcher, VerizonCallDetailsMatcher};
-    
+
     let matcher = VerizonCallDetailsMatcher::new();
-    
+
     // Text that doesn't match any call detail patterns
     let result = matcher.normalize("Regular text");
     assert_eq!(result, None);
@@ -310,12 +304,12 @@ fn test_call_details_normalize_no_match() {
 #[test]
 fn test_call_details_generate_variants() {
     use redactor::domain::{PatternMatcher, VerizonCallDetailsMatcher};
-    
+
     let matcher = VerizonCallDetailsMatcher::new();
-    
+
     // Generate variants for a time pattern
     let variants = matcher.generate_variants("3:45 PM");
-    
+
     // Should return at least the original
     assert!(!variants.is_empty());
     assert_eq!(variants[0], "3:45 PM");
