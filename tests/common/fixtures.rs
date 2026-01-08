@@ -10,6 +10,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 /// Extracts text from a PDF safely, returning an error instead of panicking.
+#[allow(dead_code)]
 pub fn extract_text(pdf_path: &Path) -> Result<String> {
     let service = redactor::RedactionService::with_secure_strategy();
     service
@@ -83,6 +84,7 @@ impl TestPdfBuilder {
     }
 
     /// Sets custom page dimensions.
+    #[allow(dead_code)]
     pub fn with_dimensions(mut self, width: f32, height: f32) -> Self {
         self.page_width = Mm(width);
         self.page_height = Mm(height);
@@ -157,6 +159,7 @@ pub fn create_verizon_bill(path: &Path, account: &str, phones: &[&str]) -> Resul
 }
 
 /// Quick helper to create a contact list PDF.
+#[allow(dead_code)]
 pub fn create_contact_list(
     path: &Path,
     contacts: &[(&str, &str)], // (name, phone) pairs

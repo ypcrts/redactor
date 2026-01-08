@@ -259,7 +259,7 @@ mod boundary_conditions {
             .build(&input)?;
 
         let service = RedactionService::with_secure_strategy();
-        let result = with_mupdf_lock!(service.redact(
+        let _result = with_mupdf_lock!(service.redact(
             &input,
             &output,
             &[RedactionTarget::Literal("日本語".to_string())]
@@ -440,7 +440,7 @@ mod pattern_resolution {
             .build(&input)?;
 
         let service = RedactionService::with_secure_strategy();
-        let result = with_mupdf_lock!(service.redact(
+        let _result = with_mupdf_lock!(service.redact(
             &input,
             &output,
             &[RedactionTarget::Literal("SECRET".to_string())]

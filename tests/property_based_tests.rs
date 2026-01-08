@@ -150,7 +150,7 @@ mod phone_properties {
 
         // Should find reasonable number of matches
         assert!(results.len() <= 100);
-        assert!(results.len() > 0);
+        assert!(!results.is_empty());
     }
 
     /// Property: Normalization should be idempotent
@@ -369,7 +369,7 @@ mod stress_tests {
         let results = matcher.extract_all(&large_text);
         let duration = start.elapsed();
 
-        assert!(results.len() > 0);
+        assert!(!results.is_empty());
         assert!(duration.as_millis() < 1000, "Should complete quickly");
     }
 
@@ -484,7 +484,7 @@ mod invariants {
         let account_matcher = VerizonAccountMatcher::new();
 
         assert!(phone_matcher.extract_all("").is_empty());
-        assert!(account_matcher.generate_variants("").len() >= 1); // Returns at least input
+        assert!(!account_matcher.generate_variants("").is_empty()); // Returns at least input
         assert!(VerizonAccountMatcher::find_account_number("").is_none());
     }
 }

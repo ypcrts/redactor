@@ -14,7 +14,6 @@ use common::*;
 /// Tests for build_targets function behavior (mirrors main.rs logic)
 mod build_targets_tests {
     use super::*;
-
     fn build_targets_mock(
         patterns: &[String],
         phones: bool,
@@ -123,7 +122,6 @@ mod build_targets_tests {
 
 mod validation_tests {
     use super::*;
-
     #[test]
     fn test_input_file_validation_missing() {
         let result = validate_input_path(PathBuf::from("/nonexistent.pdf"));
@@ -179,7 +177,6 @@ mod validation_tests {
 }
 
 mod output_formatting_tests {
-    use super::*;
     use redactor::RedactionResult;
 
     #[test]
@@ -198,13 +195,6 @@ mod output_formatting_tests {
 
     #[test]
     fn test_success_message_no_redactions() {
-        let result = RedactionResult {
-            instances_redacted: 0,
-            pages_processed: 3,
-            pages_modified: 0,
-            secure: true,
-        };
-
         let message = format_no_redactions_message();
         assert!(message.contains("No instances"));
     }
@@ -244,8 +234,6 @@ mod output_formatting_tests {
 }
 
 mod error_handling_tests {
-    use super::*;
-
     #[test]
     fn test_error_message_formatting() {
         let errors = vec![
@@ -284,7 +272,6 @@ mod error_handling_tests {
 
 mod extract_command_tests {
     use super::*;
-
     #[test]
     fn test_extract_command_logic() -> Result<()> {
         let temp_dir = TempDir::new()?;

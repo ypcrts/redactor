@@ -14,7 +14,7 @@ use common::*;
 
 /// Creates a test Command for the redactor binary.
 fn redactor_cmd() -> Command {
-    Command::cargo_bin("redactor").expect("Failed to find binary")
+    assert_cmd::cargo::cargo_bin_cmd!("redactor")
 }
 
 /// Tests basic CLI argument parsing and help output.

@@ -524,7 +524,7 @@ fn test_regex_empty_pattern() -> Result<()> {
 
     // Try to redact with empty regex pattern
     let service = RedactionService::with_secure_strategy();
-    let result = with_mupdf_lock!(service.redact(
+    let _result = with_mupdf_lock!(service.redact(
         &input_pdf,
         &output_pdf,
         &[RedactionTarget::Regex("".to_string())]

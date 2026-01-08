@@ -226,7 +226,7 @@ fn test_from_anyhow_error_conversion() {
 #[test]
 fn test_redactor_result_ok() {
     let result: RedactorResult<i32> = Ok(42);
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.ok(), Some(42));
 }
 
 #[test]
