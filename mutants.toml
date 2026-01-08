@@ -1,0 +1,40 @@
+# cargo-mutants configuration for redactor project
+#
+# Mutation testing validates test quality by making systematic changes
+# to source code and verifying tests catch them. This config excludes
+# files that shouldn't be mutated (test code, FFI, CLI covered by integration tests).
+
+[mutants]
+# Timeout per mutation test run (seconds)
+timeout = 60
+
+# Number of parallel workers for mutation testing
+# Adjust based on CI runner capacity
+workers = 4
+
+# Exclude test files from mutation
+# We mutate source code, not test code
+[[mutants.exclude]]
+path = "tests/**"
+
+# Exclude CLI binary - logic is covered by integration tests
+# The CLI handler is tested via assert_cmd in cli_comprehensive_test.rs
+[[mutants.exclude]]
+path = "src/main.rs"
+
+# Exclude unsafe FFI code in secure.rs
+# FFI code uses unsafe blocks and shouldn't be mutated
+[[mutants.exclude]]
+path = "src/redaction/secure.rs"
+match = "mod ffi"
+
+# Exclude generated/benchmark files
+[[mutants.exclude]]
+path = "target/**"
+[[mutants.exclude]]
+path = "benches/**"
+
+# Build and test commands
+[mutants.build-command]
+use = "cargo"
+test-command = ["test", "--all-features", "--workspace"]

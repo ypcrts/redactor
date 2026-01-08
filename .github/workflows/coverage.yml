@@ -1,0 +1,125 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-action@stable
+      with:
+        components: llvm-tools-preview
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libharfbuzz-dev \
+          libgraphite2-dev \
+          libjpeg-dev \
+          libopenjp2-7-dev \
+          libssl-dev \
+          pkg-config \
+          llvm
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Generate code coverage
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: lcov.info
+        fail_ci_if_error: false
+        verbose: true
+
+    - name: Generate HTML report
+      run: cargo llvm-cov --all-features --workspace --html
+
+    - name: Upload HTML coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: target/llvm-cov/html/
+        retention-days: 14
+
+  # Alternative: Tarpaulin coverage (more mature but slower)
+  tarpaulin:
+    name: Tarpaulin Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-action@stable
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libharfbuzz-dev \
+          libgraphite2-dev \
+          libjpeg-dev \
+          libopenjp2-7-dev \
+          libssl-dev \
+          pkg-config
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Run tarpaulin
+      run: |
+        cargo tarpaulin \
+          --all-features \
+          --workspace \
+          --timeout 300 \
+          --out xml \
+          --out html \
+          --output-dir coverage \
+          --skip-clean \
+          --engine llvm \
+          || cargo tarpaulin \
+            --all-features \
+            --workspace \
+            --timeout 300 \
+            --out xml \
+            --out html \
+            --output-dir coverage \
+            --skip-clean
+
+    - name: Upload tarpaulin coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage/cobertura.xml
+        fail_ci_if_error: false
+        verbose: true
+
+    - name: Upload tarpaulin HTML report
+      uses: actions/upload-artifact@v4
+      with:
+        name: tarpaulin-report
+        path: coverage/
+        retention-days: 14

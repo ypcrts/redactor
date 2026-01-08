@@ -23,9 +23,6 @@ pub enum RedactionTarget {
 
     /// Verizon call detail columns (time, origination, destination)
     VerizonCallDetails,
-
-    /// All text (complete document redaction)
-    AllText,
 }
 
 /// Statistics about a redaction operation.

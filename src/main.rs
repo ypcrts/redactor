@@ -30,16 +30,12 @@ struct Cli {
     pattern: Vec<String>,
 
     /// Redact American phone numbers
-    #[arg(long, conflicts_with = "all")]
+    #[arg(long)]
     phones: bool,
 
     /// Redact Verizon account number (automatically includes phone numbers and call details)
-    #[arg(long, conflicts_with = "all")]
+    #[arg(long)]
     verizon: bool,
-
-    /// Redact all text (complete document redaction)
-    #[arg(long, conflicts_with_all = ["phones", "verizon"])]
-    all: bool,
 
     /// Enable verbose output
     #[arg(short, long, global = true)]
@@ -87,9 +83,7 @@ impl RedactionHandler {
         }
 
         if targets.is_empty() {
-            anyhow::bail!(
-                "No redaction targets specified. Use --pattern, --phones, --verizon, or --all."
-            );
+            anyhow::bail!("No redaction targets specified. Use --pattern, --phones, or --verizon.");
         }
 
         if self.verbose {
@@ -161,34 +155,25 @@ impl RedactionHandler {
 }
 
 /// Parses command-line arguments and builds redaction targets.
-fn build_targets(
-    patterns: &[String],
-    phones: bool,
-    verizon: bool,
-    all: bool,
-) -> Vec<RedactionTarget> {
+fn build_targets(patterns: &[String], phones: bool, verizon: bool) -> Vec<RedactionTarget> {
     let mut targets = Vec::new();
 
-    if all {
-        targets.push(RedactionTarget::AllText);
-    } else {
-        // Add Verizon account if requested
-        if verizon {
-            targets.push(RedactionTarget::VerizonAccount);
-            // Verizon bills contain phone numbers, so automatically redact them too
-            targets.push(RedactionTarget::PhoneNumbers);
-            // Also redact call detail columns (time, origination, destination)
-            targets.push(RedactionTarget::VerizonCallDetails);
-        }
-
-        // Add phone numbers if requested (and not already added by verizon flag)
-        if phones && !verizon {
-            targets.push(RedactionTarget::PhoneNumbers);
-        }
-
-        // Add literal patterns if specified
-        targets.extend(patterns.iter().map(|p| RedactionTarget::Literal(p.clone())));
+    // Add Verizon account if requested
+    if verizon {
+        targets.push(RedactionTarget::VerizonAccount);
+        // Verizon bills contain phone numbers, so automatically redact them too
+        targets.push(RedactionTarget::PhoneNumbers);
+        // Also redact call detail columns (time, origination, destination)
+        targets.push(RedactionTarget::VerizonCallDetails);
     }
+
+    // Add phone numbers if requested (and not already added by verizon flag)
+    if phones && !verizon {
+        targets.push(RedactionTarget::PhoneNumbers);
+    }
+
+    // Add literal patterns if specified
+    targets.extend(patterns.iter().map(|p| RedactionTarget::Literal(p.clone())));
 
     targets
 }
@@ -213,7 +198,7 @@ fn main() -> Result<()> {
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("--output is required"))?;
 
-            let targets = build_targets(&cli.pattern, cli.phones, cli.verizon, cli.all);
+            let targets = build_targets(&cli.pattern, cli.phones, cli.verizon);
             handler.redact(input, output, targets)?;
         }
     }
@@ -228,16 +213,16 @@ mod tests {
     #[test]
     fn test_target_building() {
         // Test verizon flag (should include phones and call details automatically)
-        let targets = build_targets(&[], false, true, false);
+        let targets = build_targets(&[], false, true);
         assert_eq!(targets.len(), 3); // VerizonAccount + PhoneNumbers + VerizonCallDetails
 
         // Test literal pattern
-        let targets = build_targets(&[String::from("test")], false, false, false);
+        let targets = build_targets(&[String::from("test")], false, false);
         assert_eq!(targets.len(), 1);
         assert!(matches!(targets[0], RedactionTarget::Literal(_)));
 
         // Test phones flag
-        let targets = build_targets(&[], true, false, false);
+        let targets = build_targets(&[], true, false);
         assert_eq!(targets.len(), 1);
         assert!(matches!(targets[0], RedactionTarget::PhoneNumbers));
     }

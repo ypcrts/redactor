@@ -1,13 +1,13 @@
 [package]
 name = "redactor"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.70"
 description = "Secure PDF redaction library with Type3 font support using MuPDF"
 authors = ["redactor contributors"]
 license = "MIT"
-repository = "https://github.com/yourusername/redactor"
-homepage = "https://github.com/yourusername/redactor"
+repository = "https://github.com/ypcrts/redactor"
+homepage = "https://github.com/ypcrts/redactor"
 documentation = "https://docs.rs/redactor"
 readme = "README.md"
 keywords = ["pdf", "redaction", "security", "privacy", "mupdf"]

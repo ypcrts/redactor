@@ -1,0 +1,105 @@
+name: Mutation Testing
+
+on:
+  # Weekly scheduled run (Sunday at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * 0'
+
+  # Manual trigger via GitHub Actions UI
+  workflow_dispatch:
+
+  # Optional: Run on pushes to main (uncomment if desired)
+  # push:
+  #   branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutation-testing:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # Mutation testing can take 15-30 minutes
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-action@stable
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libharfbuzz-dev \
+          libgraphite2-dev \
+          libjpeg-dev \
+          libopenjp2-7-dev \
+          libssl-dev \
+          pkg-config
+
+    - name: Cache cargo registry and target
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Install cargo-mutants
+      run: cargo install cargo-mutants
+
+    - name: Run mutation testing
+      run: cargo mutants --all --html
+      continue-on-error: true  # Don't fail CI if mutation score is low
+
+    - name: Upload mutation testing report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mutation-testing-report
+        path: |
+          mutants-out/html/
+          mutants-out/*.json
+        retention-days: 30
+
+    - name: Extract mutation score
+      id: mutation_score
+      if: always()
+      run: |
+        # Extract mutation score from cargo-mutants output
+        # Format: "Mutation score: 85.0% (125/147)"
+        if [ -f mutants-out/results.json ]; then
+          # Parse JSON if available
+          echo "mutation_score=$(jq -r '.summary.mutation_score // "N/A"' mutants-out/results.json 2>/dev/null || echo "N/A")" >> $GITHUB_OUTPUT
+        else
+          echo "mutation_score=N/A" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Comment mutation score summary
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const score = '${{ steps.mutation_score.outputs.mutation_score }}';
+          const comment = `## Mutation Testing Results
+          
+          **Mutation Score**: ${score}
+          
+          📊 Full report available in workflow artifacts.
+          📖 See [MUTATION_TESTING.md](https://github.com/${{ github.repository }}/blob/main/MUTATION_TESTING.md) for details.
+          
+          *Note: This is a non-blocking check. Review surviving mutations and improve test coverage as needed.*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

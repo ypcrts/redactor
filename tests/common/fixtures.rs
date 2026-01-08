@@ -9,6 +9,14 @@ use std::fs;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
+/// Extracts text from a PDF safely, returning an error instead of panicking.
+pub fn extract_text(pdf_path: &Path) -> Result<String> {
+    let service = redactor::RedactionService::with_secure_strategy();
+    service
+        .extract_text(pdf_path)
+        .map_err(|e| anyhow::anyhow!("Failed to extract text: {}", e))
+}
+
 /// Builder for creating test PDFs with custom content.
 ///
 /// # Example
@@ -49,52 +57,48 @@ impl TestPdfBuilder {
             page_height: Mm(297.0), // A4 height
         }
     }
-    
+
     /// Sets the document title.
     pub fn with_title(mut self, title: &str) -> Self {
         self.title = title.to_string();
         self
     }
-    
+
     /// Adds a Verizon account number to the document.
     pub fn with_verizon_account(mut self, account: &str) -> Self {
         self.account_numbers.push(account.to_string());
         self
     }
-    
+
     /// Adds a phone number to the document.
     pub fn with_phone(mut self, phone: &str) -> Self {
         self.phone_numbers.push(phone.to_string());
         self
     }
-    
+
     /// Adds custom text content to the document.
     pub fn with_content(mut self, content: &str) -> Self {
         self.custom_content.push(content.to_string());
         self
     }
-    
+
     /// Sets custom page dimensions.
     pub fn with_dimensions(mut self, width: f32, height: f32) -> Self {
         self.page_width = Mm(width);
         self.page_height = Mm(height);
         self
     }
-    
+
     /// Builds the PDF and writes it to the specified path.
     pub fn build(self, output_path: &Path) -> Result<PathBuf> {
-        let (doc, page1, layer1) = PdfDocument::new(
-            &self.title,
-            self.page_width,
-            self.page_height,
-            "Layer 1"
-        );
+        let (doc, page1, layer1) =
+            PdfDocument::new(&self.title, self.page_width, self.page_height, "Layer 1");
         let current_layer = doc.get_page(page1).get_layer(layer1);
-        
+
         // Build content string
         let mut content = String::new();
         content.push_str(&format!("{}\n\n", self.title));
-        
+
         // Add account numbers
         if !self.account_numbers.is_empty() {
             content.push_str("Account Information:\n");
@@ -103,7 +107,7 @@ impl TestPdfBuilder {
             }
             content.push('\n');
         }
-        
+
         // Add phone numbers
         if !self.phone_numbers.is_empty() {
             content.push_str("Contact Information:\n");
@@ -112,20 +116,20 @@ impl TestPdfBuilder {
             }
             content.push('\n');
         }
-        
+
         // Add custom content
         for custom in &self.custom_content {
             content.push_str(custom);
             content.push('\n');
         }
-        
+
         // Add text to PDF
         let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
         current_layer.use_text(&content, 12.0, Mm(20.0), Mm(270.0), &font);
-        
+
         // Save PDF
         doc.save(&mut BufWriter::new(fs::File::create(output_path)?))?;
-        
+
         Ok(output_path.to_path_buf())
     }
 }
@@ -137,22 +141,18 @@ impl Default for TestPdfBuilder {
 }
 
 /// Quick helper to create a Verizon bill PDF with standard content.
-pub fn create_verizon_bill(
-    path: &Path,
-    account: &str,
-    phones: &[&str],
-) -> Result<PathBuf> {
+pub fn create_verizon_bill(path: &Path, account: &str, phones: &[&str]) -> Result<PathBuf> {
     let mut builder = TestPdfBuilder::new()
         .with_title("VERIZON WIRELESS - Monthly Statement")
         .with_verizon_account(account)
         .with_content("Billing Period: January 1-31, 2026")
         .with_content("Payment Due: February 15, 2026")
         .with_content("\nService Summary:");
-    
+
     for phone in phones {
         builder = builder.with_phone(phone);
     }
-    
+
     builder.build(path)
 }
 
@@ -164,12 +164,12 @@ pub fn create_contact_list(
     let mut builder = TestPdfBuilder::new()
         .with_title("Contact List")
         .with_content("Emergency Contacts:\n");
-    
+
     for (name, phone) in contacts {
         builder = builder.with_content(&format!("  {}: {}", name, phone));
         builder = builder.with_phone(phone);
     }
-    
+
     builder.build(path)
 }
 
@@ -184,23 +184,23 @@ mod tests {
             .with_title("Test")
             .with_verizon_account("123456789-00001")
             .with_phone("(555) 234-5678");
-        
+
         assert_eq!(builder.title, "Test");
         assert_eq!(builder.account_numbers.len(), 1);
         assert_eq!(builder.phone_numbers.len(), 1);
     }
-    
+
     #[test]
     fn test_create_verizon_bill() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let pdf_path = temp_dir.path().join("test.pdf");
-        
+
         create_verizon_bill(
             &pdf_path,
             "123456789-00001",
             &["(555) 234-5678", "555-987-6543"],
         )?;
-        
+
         assert!(pdf_path.exists());
         Ok(())
     }

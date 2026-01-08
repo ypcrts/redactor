@@ -86,18 +86,24 @@ impl SecureRedactionStrategy {
                     // Note: If no call detail table found, we simply don't add patterns
                     // This is not an error - the document may not have call details
                 }
-                RedactionTarget::Regex(_pattern) => {
-                    // Regex-based search would require a different approach
-                    // For now, return an error indicating unsupported
-                    return Err(RedactorError::InvalidInput {
-                        parameter: "target".to_string(),
-                        reason: "Regex targets not yet supported in secure strategy".to_string(),
-                    });
-                }
-                RedactionTarget::AllText => {
-                    // For AllText, we'll redact the entire page by searching for a pattern that matches everything
-                    // Use a regex that matches any character sequence
-                    patterns.push(".+".to_string());
+                RedactionTarget::Regex(pattern) => {
+                    // Extract text from PDF
+                    let text = self.extract_text(input)?;
+
+                    // Compile regex pattern
+                    let re =
+                        regex::Regex::new(pattern).map_err(|e| RedactorError::InvalidInput {
+                            parameter: "regex_pattern".to_string(),
+                            reason: format!("Invalid regex pattern: {}", e),
+                        })?;
+
+                    // Find all matches and add them as literal patterns
+                    for capture in re.find_iter(&text) {
+                        let matched_text = capture.as_str().to_string();
+                        if !matched_text.is_empty() {
+                            patterns.push(matched_text);
+                        }
+                    }
                 }
             }
         }
@@ -127,7 +133,7 @@ impl SecureRedactionStrategy {
             ..Default::default()
         };
 
-        // Check if this is an "all text" redaction (pattern is ".+")
+        // Check if this is a full-page redaction (single pattern matching everything: ".+")
         let redact_all = patterns.len() == 1 && patterns[0] == ".+";
 
         // Process each page
